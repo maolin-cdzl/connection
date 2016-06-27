@@ -20,7 +20,7 @@ Acceptor::~Acceptor() {
 	stop();
 }
 
-int Acceptor::start(const std::string& address,uint16_t port,const std::function<void(const std::shared_ptr<SockHold>&)>& callback) {
+int Acceptor::start(const std::string& address,uint16_t port,const std::function<void(const std::shared_ptr<Connection>&)>& callback) {
 	if( m_thread != nullptr ) {
 		return -1;
 	}
@@ -41,13 +41,13 @@ void Acceptor::stop() {
 	}
 }
 
-void Acceptor::run(const std::string& address,uint16_t port,const std::function<void(const std::shared_ptr<SockHold>&)>& callback,int pipe) {
+void Acceptor::run(const std::string& address,uint16_t port,const std::function<void(const std::shared_ptr<Connection>&)>& callback,int pipe) {
 	int sock = listenSocket(address,port);
 	if( -1 == sock ) {
 		sendSignal(pipe,-1);
 		return;
 	}
-	std::function<void(const std::shared_ptr<SockHold>&)> cb(callback);
+	std::function<void(const std::shared_ptr<Connection>&)> cb(callback);
 
 	struct ev_loop* loop = ev_loop_new(0);
 	ev_io wp; // pipe watcher
@@ -107,16 +107,10 @@ static void onPipeReadable(struct ev_loop* loop,ev_io* w,int revents) {
 static void onListenSocketReadable(struct ev_loop* loop,ev_io* w,int revents) {
 	(void)loop;
 	if( revents & EV_READ ) {
-		struct sockaddr_in addr;
-		socklen_t addrlen = sizeof(addr);
-		int sock = accept(w->fd,(struct sockaddr*)&addr,&addrlen);
-		if( -1 != sock ) {
-			char ip[32];
-			inet_ntop(addr.sin_family,&(addr.sin_addr),ip,sizeof(ip));
-			uint16_t port = ntohs(addr.sin_port);
-
-			std::function<void(const std::shared_ptr<SockHold>&)>* cb = (std::function<void(const std::shared_ptr<SockHold>&)>*)w->data;
-			(*cb)(std::shared_ptr<SockHold>(new SockHold(sock,ip,port)));
+		auto conn = Connection::accept(w->fd);
+		if( conn != nullptr ) {
+			auto cb = (std::function<void(const std::shared_ptr<Connection>&)>*)w->data;
+			(*cb)(conn);
 		}
 	}
 }
