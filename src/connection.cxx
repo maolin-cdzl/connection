@@ -2,6 +2,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <fcntl.h>
 #include <memory>
 #include "etutils/common/time.hpp"
 
@@ -10,12 +11,17 @@
 namespace echat {
 namespace connection {
 
-std::shared_ptr<Connection> Connection::accept(int lsock) {
+std::shared_ptr<Connection> Connection::accept(int lsock,bool nonblock) {
 	struct sockaddr_in addr;
 	socklen_t addrlen = sizeof(addr);
 	int sock = ::accept(lsock,(struct sockaddr*)&addr,&addrlen);
 	if( -1 == sock ) {
 		return nullptr;
+	}
+	if( nonblock ) {
+		int flags = fcntl(sock,F_GETFL,0);
+		flags |= O_NONBLOCK;
+		fcntl(sock,F_SETFL,flags);
 	}
 	char ip[32];
 	inet_ntop(addr.sin_family,&(addr.sin_addr),ip,sizeof(ip));

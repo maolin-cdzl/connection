@@ -16,12 +16,13 @@ private:
 	uint64_t		m_ts_last_write;
 
 	Connection(const Connection&) = delete;
+	Connection(Connection&&) = delete;
 	Connection& operator = (const Connection &) = delete;
 	Connection& operator = (Connection &&) = delete;
 
 	Connection();
 public:
-	static std::shared_ptr<Connection> accept(int listsock);
+	static std::shared_ptr<Connection> accept(int listsock,bool nonblock=true);
 
 	~Connection();
 
